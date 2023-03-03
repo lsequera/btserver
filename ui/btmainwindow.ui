@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>616</width>
-    <height>379</height>
+    <height>501</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
      <rect>
       <x>390</x>
       <y>70</y>
-      <width>67</width>
+      <width>201</width>
       <height>21</height>
      </rect>
     </property>
@@ -45,7 +45,7 @@
      <rect>
       <x>20</x>
       <y>10</y>
-      <width>99</width>
+      <width>81</width>
       <height>38</height>
      </rect>
     </property>
@@ -53,21 +53,11 @@
      <string>Power</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="devices_combo_box">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>120</y>
-      <width>331</width>
-      <height>36</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="connect_button">
     <property name="geometry">
      <rect>
       <x>380</x>
-      <y>120</y>
+      <y>160</y>
       <width>99</width>
       <height>38</height>
      </rect>
@@ -94,6 +84,42 @@
     </property>
     <property name="text">
      <string> Off </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="scan_button">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>110</y>
+      <width>131</width>
+      <height>38</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Scan Devices</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="stop_button">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>110</y>
+      <width>99</width>
+      <height>38</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Stop</string>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="devices_list">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>160</y>
+      <width>331</width>
+      <height>192</height>
+     </rect>
     </property>
    </widget>
   </widget>
