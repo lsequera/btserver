@@ -4,8 +4,8 @@
 import sys, time
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
-
-from PyQt5.uic import loadUi
+from PyQt5 import QtCore
+from PyQt5.QtBluetooth  import QBluetoothAddress
 
 from main_window_ui import Ui_MainWindow
 
@@ -49,8 +49,17 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
             
     def add_devices(self, info):
         label = f'{info.name()} ({info.address().toString()})'
-        item = QListWidgetItem(label)
-        self.devices_list.addItem(item)
+        items = self.devices_list.findItems(label, QtCore.Qt.MatchExactly)
+        if len(items) == 0:
+            item = QListWidgetItem(label)
+            self.devices_list.addItem(item)
+
+    def item_activated(self, item):
+        text = item.text()
+        tx = text.split('(')
+        address = QBluetoothAddress(tx[1][:-1])
+        name =  tx[0][:-1]
+        print(name, address.toString(), sep=' -> ')
             
     def start_scan(self):
         agent.deviceDiscovered.connect(self.add_devices)
@@ -60,11 +69,18 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
     def stop_scan(self):
         agent.stop()
         self.stop_button.setVisible(False)
+
+    def scan_finished(self):
+        self.stop_button.setVisible(False)
         
 
     def connectSignalsSlots(self):
         self.power_button.clicked.connect(self.dev_power)
         self.scan_button.clicked.connect(self.start_scan)
+        self.stop_button.clicked.connect(self.stop_scan)
+        self.devices_list.itemClicked.connect(self.item_activated)
+        
+        agent.finished.connect(self.scan_finished)
 
 
 
