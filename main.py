@@ -10,12 +10,14 @@ from PyQt5.QtBluetooth  import QBluetoothAddress
 from main_window_ui import Ui_MainWindow
 
 from devices import LocalDevice, Agent
-
+from btserver import BtServer
 
 
 # Get the local Bluetooth device
 local_device = LocalDevice()
 agent = Agent()
+
+bt_server = BtServer(local_device)
 
 class BtServerWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -23,6 +25,7 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("BtServerRF")
         self.setupUi(self)
         self.stop_button.setVisible(False)
+        self.re_info()
         self.connectSignalsSlots()
         
         
@@ -31,8 +34,10 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
 
         if info[2] == 'PoweredOff':
             self.power_label.setText(' Off')
+            self.power_label.setStyleSheet('QLabel { color : #ff0000}')
         else:
             self.power_label.setText(' On')
+            self.power_label.setStyleSheet('QLabel { color : #84c100}')
         
         self.device_label.setText(f'Main local device: {info[0]} ({info[1]})')
         self.status_label.setText(f'Status: {info[2]}')
@@ -72,17 +77,21 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
 
     def scan_finished(self):
         self.stop_button.setVisible(False)
-        
+
+    def start_server(self):
+        bt_server.start_server()
+        self.re_info()
+        self.log_text.insertPlainText("Service started!\n")
 
     def connectSignalsSlots(self):
         self.power_button.clicked.connect(self.dev_power)
         self.scan_button.clicked.connect(self.start_scan)
         self.stop_button.clicked.connect(self.stop_scan)
         self.devices_list.itemClicked.connect(self.item_activated)
+        self.start_server_button.clicked.connect(self.start_server)
         
         agent.finished.connect(self.scan_finished)
-
-
+        
 
 
 

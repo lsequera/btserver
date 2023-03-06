@@ -15,7 +15,7 @@ class LocalDevice(QBluetoothLocalDevice):
             name = self.name()
             # Get the address of the local device
             address = self.address().toString()
-            # Check if the local device is currently powered on
+            # Check if the local device is currently powered on and status
             modes = {0: 'PoweredOff', 1: 'Connectable', 2: 'Discoverable', 3: 'DiscoverableLimitedInquiry'}
             mode = self.hostMode()
             
