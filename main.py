@@ -82,7 +82,9 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         bt_server.start_server()
         self.re_info()
         self.log_text.insertPlainText("Service started!\n")
-        
+
+    def receivedMessage(self) -> str:
+        self.log_text.insertPlainText(bt_server.receivedMessage())
 
     def connectSignalsSlots(self):
         self.power_button.clicked.connect(self.dev_power)
