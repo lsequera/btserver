@@ -1,8 +1,8 @@
 from PyQt5.QtBluetooth import *
-from PyQt5.QtCore import QVariant
-
-class BtServer():
-    def __init__(self, device) -> None:
+from PyQt5.QtCore import QObject
+class BtServer(QObject):
+    def __init__(self, device, parent=None) -> None:
+        super().__init__(parent)
         self.device = device
         self.name = self.device.name()
         self.address = self.device.address()
@@ -43,30 +43,27 @@ class BtServer():
             print("No local Bluetooth device found.")
 
     def handleConnection(self):
-        clientSocket = self.server.nextPendingConnection()
-        if not clientSocket:
+        self.clientSocket = self.server.nextPendingConnection()
+        if not self.clientSocket:
             print('no Client Socket')
             return
-        clientSocket.readyRead.connect(self.readSocket1)
-        clientSocket.connected.connect(self.readSocket)
+        self.clientSocket.readyRead.connect(self.receivedMessage)
+        self.clientSocket.connected.connect(self.isConnected)
         print("New Bluetooth client connected")
-        data = clientSocket.readData(10)
-        print("Received data:", data)
-        clientSocket.disconnected.connect(self.closeSocket)
+        
+        self.clientSocket.disconnected.connect(self.closeSocket)
 
-    def readSocket1(self):
-        print("Ready")
-
-    def readSocket(self):
+    def isConnected(self):
         print("Conected")
+        self.clientSocket.write('Connected'.encode())
 
     def serverError(self) -> str:
         return self.server.errorString()
 
-    def disconnectedFromBluetooth(self) -> str:
-        return 'Disconnected from bluetooth'
+    def receivedMessage(self) -> str:
+        while self.clientSocket.canReadLine():
+            data = self.clientSocket.readLine(10)
+            print(str(data, "utf-8"))
 
-    def receivedBluetoothMessage(self) -> str:
-        while self.server.canReadLine():
-            line = self.server.readLine()
-            return str(line, "utf-8")
+    def closeSocket(self) -> str:
+        return 'Disconnected from bluetooth'
