@@ -1,5 +1,6 @@
 from PyQt5.QtBluetooth import *
 from PyQt5.QtCore import QObject
+
 class BtServer(QObject):
     def __init__(self, device, parent=None) -> None:
         super().__init__(parent)
@@ -15,7 +16,7 @@ class BtServer(QObject):
 
             # Create a Bluetooth server
             self.server = QBluetoothServer(QBluetoothServiceInfo.RfcommProtocol)
-            self.server.newConnection.connect(self.handleConnection)
+            # self.server.newConnection.connect(self.handleConnection)
             result = self.server.listen(self.address)
             if not result:
                 print('Can not bind server')
@@ -39,6 +40,7 @@ class BtServer(QObject):
                 print(f'Server {service_info.serviceName()} is listening!') 
         else:
             print("No local Bluetooth device found.")
+        return self.server
 
     def handleConnection(self):
         self.clientSocket = self.server.nextPendingConnection()
@@ -61,7 +63,7 @@ class BtServer(QObject):
     def receivedMessage(self) -> str:
         while self.clientSocket.canReadLine():
             data = self.clientSocket.read(10)
-            return str(data, "utf-8")
+            print(str(data, "utf-8"))
 
     def closeSocket(self) -> str:
         return 'Disconnected from bluetooth'

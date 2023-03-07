@@ -79,12 +79,19 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.stop_button.setVisible(False)
 
     def start_server(self):
-        bt_server.start_server()
+        self.server = bt_server.start_server()
         self.re_info()
         self.log_text.insertPlainText("Service started!\n")
+        self.server.newConnection.connect(self.connection)
+        
+    def connection(self):
+        self.client_socket = self.server.nextPendingConnection()
+        self.client_socket.readyRead.connect(self.show_message)
 
-    def receivedMessage(self) -> str:
-        self.log_text.insertPlainText(bt_server.receivedMessage())
+    def show_message(self):
+        while self.client_socket.canReadLine():
+            msg = self.client_socket.read(10)
+            self.log_text.insertPlainText(str(msg, 'utf-8'))
 
     def connectSignalsSlots(self):
         self.power_button.clicked.connect(self.dev_power)
