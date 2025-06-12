@@ -13,6 +13,7 @@ import sys, time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
 from PyQt5 import QtCore
 from PyQt5.QtBluetooth  import QBluetoothAddress
+from PyQt5.QtBluetooth import QBluetoothLocalDevice
 
 from main_window_ui import Ui_MainWindow
 
@@ -42,6 +43,7 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.re_info()
         self.connectSignalsSlots()
         
+        local_device.pairingFinished.connect(self.on_pairing_finished)
         
     def re_info(self):
         """
@@ -126,6 +128,7 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.re_info()
         self.log_text.insertPlainText("Service started!\n")
         self.server.newConnection.connect(self.connection)
+        self.update_server_status()
         
     def connection(self):
         """
@@ -142,6 +145,35 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
             msg = self.client_socket.read(10)
             self.log_text.insertPlainText(str(msg, 'utf-8'))
 
+    def on_pairing_finished(self, address, pairing):
+        """
+        Handle Bluetooth device pairing status changes.
+        Args:
+            address: QBluetoothAddress of the device.
+            pairing: QBluetoothLocalDevice.Pairing status.
+        """
+        # Use the enum values for clarity
+        if pairing == QBluetoothLocalDevice.Unpaired:
+            status_str = "Unpaired"
+        elif pairing == QBluetoothLocalDevice.Paired:
+            status_str = "Paired"
+        elif pairing == QBluetoothLocalDevice.AuthorizedPaired:
+            status_str = "Authorized Paired"
+        else:
+            status_str = str(pairing)
+        msg = f"Pairing status changed: {address.toString()} -> {status_str}\n"
+        self.log_text.insertPlainText(msg)
+        self.pair_status.setText(f"Pairing Status: {status_str}")
+
+    def update_server_status(self):
+        """
+        Update the server_status label based on the server's running state.
+        """
+        if hasattr(self, 'server') and self.server and self.server.isListening():
+            self.server_status.setText("Server status: Active")
+        else:
+            self.server_status.setText("Server status: Inactive")
+
     def connectSignalsSlots(self):
         """
         Connect UI buttons and agent signals to their respective slots.
@@ -154,9 +186,6 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         
         agent.finished.connect(self.scan_finished)
         
-
-
-
 
 def main():
     """
