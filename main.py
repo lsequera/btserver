@@ -8,17 +8,30 @@ This script provides a PyQt5 GUI for managing a Bluetooth server using the local
 It allows users to power the device on/off, scan for nearby devices, and start a Bluetooth server to accept connections.
 """
 
-import sys, time
+import sys
+import time
+import logging
+from typing import Optional
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidgetItem
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QListWidgetItem, 
+    QMessageBox, QProgressDialog
+)
 from PyQt5 import QtCore
-from PyQt5.QtBluetooth  import QBluetoothAddress
-from PyQt5.QtBluetooth import QBluetoothLocalDevice
+from PyQt5.QtBluetooth import (
+    QBluetoothAddress, QBluetoothLocalDevice,
+)
 
 from main_window_ui import Ui_MainWindow
-
 from devices import LocalDevice, Agent
 from btserver import BtServer
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # Get the local Bluetooth device
@@ -66,14 +79,26 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         """
         Toggle the power state of the local Bluetooth device.
         Powers on if off, otherwise sets host mode to off.
+        
+        Raises:
+            RuntimeError: If device operation fails
         """
-        if local_device.info()[2] == 'PoweredOff':
-            local_device.powerOn()
-            time.sleep(0.2)
+        try:
+            current_status = local_device.info()[2]
+            if current_status == 'PoweredOff':
+                if not local_device.powerOn():
+                    raise RuntimeError("Failed to power on Bluetooth device")
+                time.sleep(0.2)
+            else:
+                if not local_device.setHostMode(0):
+                    raise RuntimeError("Failed to power off Bluetooth device")
+            
             self.re_info()
-        else:
-            local_device.setHostMode(0)
-            self.re_info()
+            logger.info(f"Bluetooth device power state changed to {local_device.info()[2]}")
+            
+        except Exception as e:
+            logger.error(f"Error toggling Bluetooth power: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to change Bluetooth power state: {str(e)}")
             
     def add_devices(self, info):
         """
@@ -124,10 +149,29 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         """
         Start the Bluetooth server and update the UI/log.
         """
-        self.server = bt_server.start_server()
-        self.re_info()
-        self.log_text.insertPlainText("Service started!\n")
-        self.server.newConnection.connect(self.connection)
+        try:
+            self.server = bt_server.start_server()
+            if not self.server:
+                raise RuntimeError("Failed to start Bluetooth server")
+                
+            self.re_info()
+            self.log_text.insertPlainText("Service started!\n")
+            self.server.newConnection.connect(self.connection)
+            self.update_server_status()
+            logger.info("Bluetooth server started successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to start Bluetooth server: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to start Bluetooth server: {str(e)}")
+            if hasattr(self, 'server'):
+                self.server.stop()
+
+    def stop_server(self):
+        """
+        Stop the Bluetooth server and update the UI/log.
+        """
+        self.server.stop()
+        self.log_text.insertPlainText("Service stopped!\n")
         self.update_server_status()
         
     def connection(self):
