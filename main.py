@@ -10,13 +10,14 @@ It allows users to power the device on/off, scan for nearby devices, and start a
 
 import sys
 import time
+import struct
 import logging
-from typing import Optional
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QListWidgetItem, 
-    QMessageBox, QProgressDialog
+    QMessageBox
 )
+
 from PyQt5 import QtCore
 from PyQt5.QtBluetooth import (
     QBluetoothAddress, QBluetoothLocalDevice,
@@ -25,6 +26,15 @@ from PyQt5.QtBluetooth import (
 from main_window_ui import Ui_MainWindow
 from devices import LocalDevice, Agent
 from btserver import BtServer
+from protocol import (
+    RemoteControlProtocol, 
+    CMD_MOUSE_MOVE, 
+    CMD_MOUSE_CLICK,
+    CMD_MOUSE_SCROLL,
+    CMD_KEY_PRESS,
+    CMD_KEY_RELEASE
+)
+from input_handler import InputHandler
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +55,7 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
     Main window for the BtServerRF application.
     Handles UI logic for Bluetooth device management, scanning, and server operations.
     """
+    
     def __init__(self):
         """
         Initialize the main window, set up UI, and connect signals/slots.
@@ -56,7 +67,12 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.re_info()
         self.connectSignalsSlots()
         
+        # Initialize protocol and input handler
+        self.protocol = RemoteControlProtocol()
+        self.input_handler = InputHandler()
+        
         local_device.pairingFinished.connect(self.on_pairing_finished)
+
         
     def re_info(self):
         """
@@ -183,11 +199,43 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
 
     def show_message(self):
         """
-        Read and display messages from the connected Bluetooth client.
+        Handle incoming Bluetooth messages according to the protocol.
         """
-        while self.client_socket.canReadLine():
-            msg = self.client_socket.read(10)
-            self.log_text.insertPlainText(str(msg, 'utf-8'))
+        try:
+            while self.client_socket.canReadLine():
+                data = self.client_socket.read(1024)
+                if not data:
+                    break
+                    
+                # Parse incoming data
+                result = self.protocol.parse(data)
+                if result:
+                    command, params = result
+                    self.protocol.handle_command(command, params)
+                    
+                    # Handle the command
+                    if command == CMD_MOUSE_MOVE:
+                        dx, dy = struct.unpack("hh", params)
+                        self.input_handler.move_mouse(dx, dy)
+                    elif command == CMD_MOUSE_CLICK:
+                        button, action = struct.unpack("BB", params)
+                        self.input_handler.click_mouse(button, action)
+                    elif command == CMD_MOUSE_SCROLL:
+                        dx, dy = struct.unpack("hh", params)
+                        self.input_handler.scroll_mouse(dx, dy)
+                    elif command == CMD_KEY_PRESS:
+                        keycode, = struct.unpack("I", params)
+                        self.input_handler.press_key(keycode)
+                    elif command == CMD_KEY_RELEASE:
+                        keycode, = struct.unpack("I", params)
+                        self.input_handler.release_key(keycode)
+                        
+                    # Log the action
+                    self.log_text.insertPlainText(f"Command {command:02X} executed\n")
+                    
+        except Exception as e:
+            logger.error(f"Error handling message: {str(e)}")
+            self.log_text.insertPlainText(f"Error: {str(e)}\n")
 
     def on_pairing_finished(self, address, pairing):
         """
