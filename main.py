@@ -65,6 +65,8 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.stop_button.setVisible(False)
         self.re_info()
+        self.server_running = False  # Track server state
+        self.start_server_button.setText("Start server")
         self.connectSignalsSlots()
         
         # Initialize protocol and input handler
@@ -161,34 +163,51 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         """
         self.stop_button.setVisible(False)
 
-    def start_server(self):
+    def toggle_server(self):
         """
-        Start the Bluetooth server and update the UI/log.
+        Toggle the Bluetooth server state and update the UI.
         """
         try:
-            self.server = bt_server.start_server()
-            if not self.server:
-                raise RuntimeError("Failed to start Bluetooth server")
-                
-            self.re_info()
-            self.log_text.insertPlainText("Service started!\n")
-            self.server.newConnection.connect(self.connection)
+            if self.server_running:
+                # Stop server
+                self.server.stop()
+                self.log_text.insertPlainText("Service stopped!\n")
+                self.start_server_button.setText("Start server")
+                self.server_running = False
+                logger.info("Bluetooth server stopped")
+            else:
+                # Start server
+                self.server = bt_server.start_server()
+                if not self.server:
+                    raise RuntimeError("Failed to start Bluetooth server")
+                    
+                self.re_info()
+                self.log_text.insertPlainText("Service started!\n")
+                self.server.newConnection.connect(self.connection)
+                self.start_server_button.setText("Stop server")
+                self.server_running = True
+                logger.info("Bluetooth server started successfully")
+            
             self.update_server_status()
-            logger.info("Bluetooth server started successfully")
             
         except Exception as e:
-            logger.error(f"Failed to start Bluetooth server: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to start Bluetooth server: {str(e)}")
+            logger.error(f"Failed to toggle Bluetooth server: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to toggle Bluetooth server: {str(e)}")
             if hasattr(self, 'server'):
                 self.server.stop()
+            self.start_server_button.setText("Start server")
+            self.server_running = False
 
     def stop_server(self):
         """
         Stop the Bluetooth server and update the UI/log.
         """
-        self.server.stop()
-        self.log_text.insertPlainText("Service stopped!\n")
-        self.update_server_status()
+        if hasattr(self, 'server'):
+            self.server.stop()
+            self.log_text.insertPlainText("Service stopped!\n")
+            self.start_server_button.setText("Start server")
+            self.server_running = False
+            self.update_server_status()
         
     def connection(self):
         """
@@ -273,8 +292,8 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         self.power_button.clicked.connect(self.dev_power)
         self.scan_button.clicked.connect(self.start_scan)
         self.stop_button.clicked.connect(self.stop_scan)
-        self.devices_list.itemClicked.connect(self.item_activated)
-        self.start_server_button.clicked.connect(self.start_server)
+        self.connect_button.clicked.connect(self.item_activated)
+        self.start_server_button.clicked.connect(self.toggle_server)
         
         agent.finished.connect(self.scan_finished)
         
