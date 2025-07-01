@@ -130,17 +130,23 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
             item = QListWidgetItem(label)
             self.devices_list.addItem(item)
 
-    def item_activated(self, item):
+    def item_activated(self, item: QListWidgetItem) -> None:
         """
-        Handle activation (click) of a device in the list. Prints the device name and address.
+        Handle activation (click) of a device in the list. 
+        Extracts device name and address from the item text.
+        
         Args:
             item: The QListWidgetItem that was activated.
         """
+        if not item:
+            return
+            
         text = item.text()
         tx = text.split('(')
         address = QBluetoothAddress(tx[1][:-1])
         name =  tx[0][:-1]
-        print(name, address.toString(), sep=' -> ')
+        self.pair_status.setText(f"Selected device: {name}")
+        logger.info(f"Selected device: {name} ({address})")
             
     def start_scan(self):
         """
@@ -170,7 +176,7 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
         try:
             if self.server_running:
                 # Stop server
-                self.server.stop()
+                self.server.close()
                 self.log_text.insertPlainText("Service stopped!\n")
                 self.start_server_button.setText("Start server")
                 self.server_running = False
@@ -256,9 +262,30 @@ class BtServerWindow(QMainWindow, Ui_MainWindow):
             logger.error(f"Error handling message: {str(e)}")
             self.log_text.insertPlainText(f"Error: {str(e)}\n")
 
-    def on_pairing_finished(self, address, pairing):
+    def pair_selected_device(self) -> None:
+        """
+        Pair with the currently selected device from the list.
+        """
+        item = self.devices_list.currentItem()
+        if not item:
+            QMessageBox.warning(self, "No Device Selected", "Please select a device from the list first")
+            return
+            
+        text = item.text()
+        tx = text.split('(')
+        address = QBluetoothAddress(tx[1][:-1])
+        name =  tx[0][:-1]
+        
+        try:
+            local_device.pair(address)
+        except Exception as e:
+            logger.error(f"Failed to pair with device: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to pair with device: {str(e)}")
+
+    def on_pairing_finished(self, address: QBluetoothAddress, pairing: QBluetoothLocalDevice.Pairing) -> None:
         """
         Handle Bluetooth device pairing status changes.
+        
         Args:
             address: QBluetoothAddress of the device.
             pairing: QBluetoothLocalDevice.Pairing status.
@@ -304,13 +331,11 @@ def main():
     """
     if sys.platform == 'darwin':
         os.environ['QT_EVENT_DISPATCHER_CORE_FOUNDATION'] = '1'
-        
-    app = QApplication([])
-    #app.setStyle('QtCurve')
+
+    app = QApplication(sys.argv)
     window = BtServerWindow()
     window.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
