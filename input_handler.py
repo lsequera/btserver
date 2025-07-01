@@ -2,12 +2,10 @@
 Input Handler Module
 ==================
 
-Handles mouse and keyboard input simulation using X11.
+Handles mouse and keyboard input simulation using evdev and uinput.
 """
 
-import Xlib.display
-import Xlib.X
-import Xlib.ext.xtest
+from evdev import UInput, ecodes
 import logging
 from typing import Tuple
 
@@ -18,8 +16,22 @@ class InputHandler:
     """Handles mouse and keyboard input simulation."""
     
     def __init__(self):
-        self.display = Xlib.display.Display()
-        self.screen = self.display.screen()
+        # Create a virtual input device
+        self.ui = UInput(
+            name='virtual-mouse',
+            events={
+                ecodes.EV_REL: [ecodes.REL_X, ecodes.REL_Y],
+                ecodes.EV_KEY: [
+                    ecodes.BTN_LEFT,
+                    ecodes.BTN_RIGHT,
+                    ecodes.BTN_MIDDLE,
+                    ecodes.BTN_4,
+                    ecodes.BTN_5,
+                    ecodes.BTN_6,
+                    ecodes.BTN_7
+                ]
+            }
+        )
         
     def move_mouse(self, dx: int, dy: int) -> None:
         """
@@ -29,19 +41,10 @@ class InputHandler:
             dx: Horizontal movement in pixels
             dy: Vertical movement in pixels
         """
-        root = self.display.screen().root
-        current = root.query_pointer()._data
-        new_x = current['root_x'] + dx
-        new_y = current['root_y'] + dy
-        
-        Xlib.ext.xtest.fake_input(
-            self.display,
-            Xlib.X.MotionNotify,
-            x=new_x,
-            y=new_y
-        )
-        self.display.sync()
-        logger.info(f"Mouse moved to ({new_x}, {new_y})")
+        self.ui.write(ecodes.EV_REL, ecodes.REL_X, dx)
+        self.ui.write(ecodes.EV_REL, ecodes.REL_Y, dy)
+        self.ui.syn()
+        logger.info(f"Mouse moved by ({dx}, {dy}) pixels")
 
     def click_mouse(self, button: int, action: int) -> None:
         """
@@ -51,20 +54,19 @@ class InputHandler:
             button: Mouse button (1=left, 2=right, 3=middle)
             action: Action (1=down, 0=up)
         """
-        if action == 1:  # Button down
-            Xlib.ext.xtest.fake_input(
-                self.display,
-                Xlib.X.ButtonPress,
-                button
-            )
-        else:  # Button up
-            Xlib.ext.xtest.fake_input(
-                self.display,
-                Xlib.X.ButtonRelease,
-                button
-            )
-        self.display.sync()
-        logger.info(f"Mouse button {button} {'pressed' if action == 1 else 'released'}")
+        # Map button numbers to evdev button codes
+        button_map = {
+            1: ecodes.BTN_LEFT,
+            2: ecodes.BTN_RIGHT,
+            3: ecodes.BTN_MIDDLE,
+        }
+        
+        if button in button_map:
+            self.ui.write(ecodes.EV_KEY, button_map[button], action)
+            self.ui.syn()
+            logger.info(f"Mouse button {button} {'pressed' if action == 1 else 'released'}")
+        else:
+            logger.warning(f"Unsupported mouse button: {button}")
 
     def scroll_mouse(self, dx: int, dy: int) -> None:
         """
@@ -74,29 +76,17 @@ class InputHandler:
             dx: Horizontal scroll amount
             dy: Vertical scroll amount
         """
-        # Convert scroll values to button presses
+        # Map scroll values to button presses
         if dy > 0:
-            for _ in range(abs(dy)):
-                Xlib.ext.xtest.fake_input(
-                    self.display,
-                    Xlib.X.ButtonPress,
-                    4  # Scroll up
-                )
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_4, 1)  # Scroll up
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_4, 0)
         elif dy < 0:
-            for _ in range(abs(dy)):
-                Xlib.ext.xtest.fake_input(
-                    self.display,
-                    Xlib.X.ButtonPress,
-                    5  # Scroll down
-                )
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_5, 1)  # Scroll down
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_5, 0)
                 
         if dx > 0:
-            for _ in range(abs(dx)):
-                Xlib.ext.xtest.fake_input(
-                    self.display,
-                    Xlib.X.ButtonPress,
-                    6  # Scroll right
-                )
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_6, 1)  # Scroll right
+            self.ui.write(ecodes.EV_KEY, ecodes.BTN_6, 0)
         elif dx < 0:
             for _ in range(abs(dx)):
                 Xlib.ext.xtest.fake_input(
